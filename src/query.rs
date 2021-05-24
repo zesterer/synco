@@ -143,9 +143,9 @@ impl<C: Component> Pattern for Not<C> {
 
 macro_rules! impl_for_tuple {
     ($($x:ident),*) => {
-        impl<$($x: Pattern),*> Pattern for ($($x),*,) {
-            type State<'a> = ($($x::State<'a>),*,);
-            type Output<'a> = ($($x::Output<'a>),*,);
+        impl<$($x: Pattern),*> Pattern for ($($x,)*) {
+            type State<'a> = ($($x::State<'a>,)*);
+            type Output<'a> = ($($x::Output<'a>,)*);
 
             fn comp_filter(ecs: &Ecs) -> (BitMask, BitMask) {
                 let filter = (BitMask::zero(), BitMask::zero());
@@ -158,17 +158,18 @@ macro_rules! impl_for_tuple {
             }
 
             fn fetch_inner<'a>(ecs: &'a Ecs) -> Self::State<'a> {
-                ($($x::fetch_inner(ecs)),*,)
+                ($($x::fetch_inner(ecs),)*)
             }
 
             #[allow(non_snake_case)]
-            unsafe fn get_unchecked<'a, 'b: 'a>(($($x),*,): &'a mut Self::State<'b>, entity: Entity) -> Self::Output<'a> {
-                ($($x::get_unchecked($x, entity)),*,)
+            unsafe fn get_unchecked<'a, 'b: 'a>(($($x,)*): &'a mut Self::State<'b>, entity: Entity) -> Self::Output<'a> {
+                ($($x::get_unchecked($x, entity),)*)
             }
         }
     };
 }
 
+impl_for_tuple!();
 impl_for_tuple!(A);
 impl_for_tuple!(A, B);
 impl_for_tuple!(A, B, C);

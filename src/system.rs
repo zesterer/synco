@@ -27,14 +27,15 @@ impl<'a, P: Pattern> Input<'a> for Query<'a, P> {
 
 macro_rules! impl_for_tuple {
     ($($x:ident),*) => {
-        impl<'a, $($x: Input<'a>),*> Input<'a> for ($($x),*,) {
+        impl<'a, $($x: Input<'a>),*> Input<'a> for ($($x,)*) {
             fn fetch(ecs: &'a Ecs) -> Self {
-                ($($x::fetch(ecs)),*,)
+                ($($x::fetch(ecs),)*)
             }
         }
     };
 }
 
+impl_for_tuple!();
 impl_for_tuple!(A);
 impl_for_tuple!(A, B);
 impl_for_tuple!(A, B, C);
@@ -76,7 +77,8 @@ pub trait IntoSystem<'a, P> {
     fn into_system(self) -> Self::System;
 }
 
-impl<'a, S: System<'a>> IntoSystem<'a, ()> for S {
+pub struct Helper;
+impl<'a, S: System<'a>> IntoSystem<'a, Helper> for S {
     type System = S;
 
     fn into_system(self) -> Self::System { self }
@@ -101,6 +103,7 @@ impl<'a, Fn: FnOnce<Args, Output = O>, Args: Input<'a>, O> IntoSystem<'a, Args> 
 //     };
 // }
 
+// impl_for_fn!();
 // impl_for_fn!(A);
 // impl_for_fn!(A, B);
 // impl_for_fn!(A, B, C);
