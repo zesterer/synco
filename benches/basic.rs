@@ -19,9 +19,9 @@ fn pos_vel_iter_synco(c: &mut Criterion) {
     impl Component for Sticky {}
 
     let mut ecs = Ecs::new()
-        .with_component::<Pos>()
-        .with_component::<Vel>()
-        .with_component::<Sticky>();
+        .with_storage::<Pos>()
+        .with_storage::<Vel>()
+        .with_storage::<Sticky>();
 
     for _ in 0..ENTITIES {
         ecs.create()

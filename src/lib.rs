@@ -53,20 +53,32 @@ impl Ecs {
         }
     }
 
+    pub fn insert_resource<R: Resource>(&mut self, res: R) -> Option<R> {
+        self.resources.insert(Row::new(res)).map(Row::into_inner)
+    }
+
     pub fn with_resource<R: Resource>(mut self, res: R) -> Self {
-        self.insert_resource_inner(res);
+        self.insert_resource(res);
         self
     }
 
-    pub fn with_component<C: Component>(mut self) -> Self {
+    pub fn insert_storage<C: Component>(&mut self) {
         if self.component_id >= u64::BITS as u64 {
             panic!("Too many components!");
         } else {
-            self.insert_resource_inner(C::Storage::default());
+            self.insert_resource(C::Storage::default());
             self.resources.insert(ComponentId::<C>::new(self.component_id));
             self.component_id += 1;
-            self
         }
+    }
+
+    pub fn with_storage<C: Component>(mut self) -> Self {
+        self.insert_storage::<C>();
+        self
+    }
+
+    pub fn with_setup<F: FnOnce(Self) -> Self>(self, setup: F) -> Self {
+        setup(self)
     }
 
     pub(crate) fn maybe_resource_inner<R: Resource>(&self) -> Option<&Row<R>> {
@@ -87,10 +99,6 @@ impl Ecs {
         self
             .maybe_resource_inner_mut()
             .unwrap_or_else(|| panic!("Resource `{:?}` is not present in the ECS", type_name::<R>()))
-    }
-
-    pub(crate) fn insert_resource_inner<R: Resource>(&mut self, res: R) -> Option<R> {
-        self.resources.insert(Row::new(res)).map(Row::into_inner)
     }
 
     pub(crate) fn storage_id<C: Component>(&self) -> u64 {

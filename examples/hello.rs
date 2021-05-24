@@ -34,8 +34,8 @@ fn main() {
     let mut ecs = Ecs::new()
         .with_resource(TimeOfDay(0.0))
         .with_resource(DeltaTime(1.0))
-        .with_component::<Pos>()
-        .with_component::<Vel>();
+        .with_storage::<Pos>()
+        .with_storage::<Vel>();
 
     ecs.create()
         .with(Pos(42.0))
