@@ -4,8 +4,9 @@ use std::marker::PhantomData;
 
 pub trait System<'a> {
     type Input: Input<'a>;
+    type Output = ();
 
-    fn run(self, inputs: Self::Input);
+    fn run(self, inputs: Self::Input) -> Self::Output;
 }
 
 pub trait Input<'a> {
@@ -60,12 +61,13 @@ impl_for_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, O, P, Q, R, S, T, U, V, W
 impl_for_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, O, P, Q, R, S, T, U, V, W, X, Y);
 impl_for_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, O, P, Q, R, S, T, U, V, W, X, Y, Z);
 
-pub struct FnSystem<F, P>(F, PhantomData<P>);
+pub struct FnSystem<F, P, O>(F, PhantomData<(P, O)>);
 
-impl<'a, F: FnOnce(P), P: Input<'a>> System<'a> for FnSystem<F, P>
+impl<'a, F: FnOnce(P) -> O, P: Input<'a>, O> System<'a> for FnSystem<F, P, O>
 {
     type Input = P;
-    fn run(self, inputs: Self::Input) { self.0(inputs) }
+    type Output = O;
+    fn run(self, inputs: Self::Input) -> Self::Output { self.0(inputs) }
 }
 
 pub trait IntoSystem<'a, P> {
@@ -85,8 +87,8 @@ impl<'a, S: System<'a>> IntoSystem<'a, ()> for S {
 //     fn into_system(self) -> Self::System { FnSystem(move |(a, b)| self(a, b), PhantomData) }
 // }
 
-impl<'a, Fn: FnOnce<Args, Output = ()>, Args: Input<'a>> IntoSystem<'a, Args> for Fn {
-    type System = FnSystem<impl FnOnce(Args), Args>;
+impl<'a, Fn: FnOnce<Args, Output = O>, Args: Input<'a>, O> IntoSystem<'a, Args> for Fn {
+    type System = FnSystem<impl FnOnce(Args) -> O, Args, O>;
     fn into_system(self) -> Self::System { FnSystem(move |args| self.call_once(args), PhantomData) }
 }
 

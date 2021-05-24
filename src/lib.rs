@@ -130,10 +130,10 @@ impl Ecs {
         P::fetch(self)
     }
 
-    pub fn run<'a, S: IntoSystem<'a, T>, T>(&'a self, sys: S) {
+    pub fn run<'a, S: IntoSystem<'a, T>, T>(&'a self, sys: S) -> <S::System as System<'a>>::Output {
         let sys = sys.into_system();
         let inputs = <S::System as System<'a>>::Input::fetch(self);
-        sys.run(inputs);
+        sys.run(inputs)
     }
 
     pub fn insert_comp<C: Component>(&mut self, entity: Entity, comp: C) -> Option<C> {
