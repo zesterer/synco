@@ -123,7 +123,7 @@ impl BitMask {
     }
 
     pub fn bit_is_set(&self, x: u64) -> bool {
-        self.0 >> x != 0
+        (self.0 >> x) & 1 != 0
     }
 
     pub fn set_bit(&mut self, x: u64) {
