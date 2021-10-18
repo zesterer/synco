@@ -31,7 +31,7 @@ impl<'a, P: Pattern> Query<'a, P> {
         }
     }
 
-    pub fn get(&mut self, entity: Entity) -> Option<P::Output<'_>> {
+    pub fn get(&mut self, entity: EntityId) -> Option<P::Output<'_>> {
         if self.entities.comp_mask(entity)?.matches(&self.filter) {
             // Safety: filter has been checked, access must be valid
             Some(unsafe { P::get_unchecked(self.state.get_mut(), entity) })
@@ -71,7 +71,7 @@ pub trait Pattern: Sized {
         }
     }
 
-    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: Entity) -> Self::Output<'a>;
+    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: EntityId) -> Self::Output<'a>;
 }
 
 impl<'c, C: Component> Pattern for &'c C
@@ -87,7 +87,7 @@ impl<'c, C: Component> Pattern for &'c C
 
     fn fetch_inner<'a>(ecs: &'a Ecs) -> Self::State<'a> { ecs.read_resource() }
 
-    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: Entity) -> Self::Output<'a> {
+    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: EntityId) -> Self::Output<'a> {
         state.get_unchecked(entity)
     }
 }
@@ -105,14 +105,14 @@ impl<'c, C: Component> Pattern for &'c mut C
 
     fn fetch_inner<'a>(ecs: &'a Ecs) -> Self::State<'a> { ecs.write_resource() }
 
-    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: Entity) -> Self::Output<'a> {
+    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: EntityId) -> Self::Output<'a> {
         state.get_unchecked_mut(entity)
     }
 }
 
-impl Pattern for Entity {
+impl Pattern for EntityId {
     type State<'a> = ();
-    type Output<'a> = Entity;
+    type Output<'a> = EntityId;
 
     fn comp_filter(ecs: &Ecs) -> (BitMask, BitMask) {
         let mask = BitMask::zero();
@@ -121,7 +121,7 @@ impl Pattern for Entity {
 
     fn fetch_inner<'a>(ecs: &'a Ecs) -> Self::State<'a> { () }
 
-    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: Entity) -> Self::Output<'a> {
+    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: EntityId) -> Self::Output<'a> {
         entity
     }
 }
@@ -138,7 +138,31 @@ impl<C: Component> Pattern for Not<C> {
 
     fn fetch_inner<'a>(ecs: &'a Ecs) -> Self::State<'a> {}
 
-    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: Entity) -> Self::Output<'a> {}
+    unsafe fn get_unchecked<'a, 'b: 'a>(state: &'a mut Self::State<'b>, entity: EntityId) -> Self::Output<'a> {}
+}
+
+pub struct Maybe<C: Component>(PhantomData<C>);
+
+impl<C: Component> Pattern for Maybe<C> {
+    type State<'a> = (Read<'a, Entities>, Read<'a, C::Storage>, u64);
+    type Output<'a> = Option<<C::Storage as Storage<C>>::Ref<'a>>;
+
+    fn comp_filter(ecs: &Ecs) -> (BitMask, BitMask) {
+        let mask = BitMask::zero();
+        (mask.clone(), mask)
+    }
+
+    fn fetch_inner<'a>(ecs: &'a Ecs) -> Self::State<'a> {
+        (ecs.entities.read(), ecs.read_resource(), ecs.storage_id::<C>() as u64)
+    }
+
+    unsafe fn get_unchecked<'a, 'b: 'a>((entities, storage, comp_id): &'a mut Self::State<'b>, entity: EntityId) -> Self::Output<'a> {
+        if entities.entry(entity)?.comp_mask.bit_is_set(*comp_id) {
+            Some(storage.get_unchecked(entity))
+        } else {
+            None
+        }
+    }
 }
 
 macro_rules! impl_for_tuple {
@@ -162,7 +186,7 @@ macro_rules! impl_for_tuple {
             }
 
             #[allow(non_snake_case)]
-            unsafe fn get_unchecked<'a, 'b: 'a>(($($x,)*): &'a mut Self::State<'b>, entity: Entity) -> Self::Output<'a> {
+            unsafe fn get_unchecked<'a, 'b: 'a>(($($x,)*): &'a mut Self::State<'b>, entity: EntityId) -> Self::Output<'a> {
                 ($($x::get_unchecked($x, entity),)*)
             }
         }

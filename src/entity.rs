@@ -6,12 +6,12 @@ use std::{
 };
 
 #[derive(Copy, Clone, Debug)]
-pub struct Entity {
+pub struct EntityId {
     idx: u32,
     gen: u32,
 }
 
-impl Entity {
+impl EntityId {
     pub(crate) unsafe fn placeholder() -> Self {
         Self { idx: 0, gen: 0 }
     }
@@ -33,7 +33,7 @@ pub struct Entities {
 }
 
 impl Entities {
-    pub fn create(&mut self) -> Entity {
+    pub fn create(&mut self) -> EntityId {
         let (idx, gen) = if let Some((idx, entry)) = self.entities
             .iter_mut()
             .enumerate()
@@ -53,7 +53,7 @@ impl Entities {
             (idx, 0)
         };
 
-        Entity {
+        EntityId {
             idx: idx
                 .try_into()
                 .unwrap_or_else(|_| panic!("No more entity slots may be allocated!")),
@@ -61,7 +61,7 @@ impl Entities {
         }
     }
 
-    pub fn delete(&mut self, entity: Entity) {
+    pub fn delete(&mut self, entity: EntityId) {
         if let Some(entry) = self.entities.get_mut(entity.idx()) {
             if entry.filled && entry.gen == entity.gen {
                 entry.filled = false;
@@ -71,19 +71,19 @@ impl Entities {
         }
     }
 
-    pub(crate) fn entry(&self, entity: Entity) -> Option<&Entry> {
+    pub(crate) fn entry(&self, entity: EntityId) -> Option<&Entry> {
         self.entities
             .get(entity.idx())
             .filter(|entry| entry.gen == entity.gen)
     }
 
-    pub(crate) fn entry_mut(&mut self, entity: Entity) -> Option<&mut Entry> {
+    pub(crate) fn entry_mut(&mut self, entity: EntityId) -> Option<&mut Entry> {
         self.entities
             .get_mut(entity.idx())
             .filter(|entry| entry.gen == entity.gen)
     }
 
-    pub(crate) fn comp_mask(&self, entity: Entity) -> Option<&BitMask> {
+    pub(crate) fn comp_mask(&self, entity: EntityId) -> Option<&BitMask> {
         self.entry(entity).map(|entry| &entry.comp_mask)
     }
 
@@ -97,14 +97,14 @@ impl Entities {
                 // println!("Entry[{}] = {:?}", i, entry);
                 entry.filled && entry.comp_mask.matches(filter)
             })
-            .map(|(idx, entry)| Entity {
+            .map(|(idx, entry)| EntityId {
                 idx: idx as u32,
                 gen: entry.gen,
             })
     }
 }
 
-pub type EntityIter<'a> = impl Iterator<Item = Entity> + 'a;
+pub type EntityIter<'a> = impl Iterator<Item = EntityId> + 'a;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BitMask(u64);

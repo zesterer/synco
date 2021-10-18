@@ -18,8 +18,8 @@ pub mod system;
 
 pub use self::{
     component::Component,
-    entity::{BitMask, Entity, Entities},
-    query::{Query, Pattern, Not},
+    entity::{BitMask, EntityId, Entities},
+    query::{Query, Pattern, Not, Maybe},
     resource::Resource,
     row::{Read, Write},
     storage::{Storage, VecStorage},
@@ -136,13 +136,13 @@ impl Ecs {
         sys.run(inputs)
     }
 
-    pub fn insert_comp<C: Component>(&mut self, entity: Entity, comp: C) -> Option<C> {
+    pub fn insert_comp<C: Component>(&mut self, entity: EntityId, comp: C) -> Option<C> {
         let comp_id = self.storage_id::<C>();
 
         let entry = self.entities
             .get_mut()
             .entry_mut(entity)
-            .expect("Created entity does not exist!");
+            .expect("Entity does not exist!");
 
         let old = if entry.comp_mask.bit_is_set(comp_id) {
             Some(unsafe { self
@@ -160,13 +160,13 @@ impl Ecs {
         old
     }
 
-    pub fn remove_comp<C: Component>(&mut self, entity: Entity, comp: C) -> Option<C> {
+    pub fn remove_comp<C: Component>(&mut self, entity: EntityId) -> Option<C> {
         let comp_id = self.storage_id::<C>();
 
         let entry = self.entities
             .get_mut()
             .entry_mut(entity)
-            .expect("Created entity does not exist!");
+            .expect("Entity does not exist!");
 
         let old = if entry.comp_mask.bit_is_set(comp_id) {
             Some(unsafe { self
@@ -180,9 +180,14 @@ impl Ecs {
         old
     }
 
-    pub fn create(&mut self) -> EntityBuilder<'_> {
+    pub fn modify(&mut self, entity: EntityId) -> Entity<'_> {
+        assert!(self.entities.get_mut().entry(entity).is_some(), "Attempted to modify non-existent entity");
+        Entity { entity, ecs: self }
+    }
+
+    pub fn create(&mut self) -> Entity<'_> {
         let entity = self.entities.get_mut().create();
-        EntityBuilder { entity, ecs: self }
+        Entity { entity, ecs: self }
     }
 }
 
@@ -196,16 +201,24 @@ pub struct WriteStorage<'a, C: Component> {
     storage: Write<'a, C::Storage>,
 }
 
-pub struct EntityBuilder<'a> {
-    entity: Entity,
+pub struct Entity<'a> {
+    entity: EntityId,
     ecs: &'a mut Ecs,
 }
 
-impl<'a> EntityBuilder<'a> {
+impl<'a> Entity<'a> {
     pub fn with<C: Component>(self, comp: C) -> Self {
         self.ecs.insert_comp(self.entity, comp);
         self
     }
 
-    pub fn finish(self) -> Entity { self.entity }
+    pub fn insert<C: Component>(&mut self, comp: C) {
+        self.ecs.insert_comp(self.entity, comp);
+    }
+
+    pub fn remove<C: Component>(&mut self) -> Option<C> {
+        self.ecs.remove_comp::<C>(self.entity)
+    }
+
+    pub fn id(&self) -> EntityId { self.entity }
 }
