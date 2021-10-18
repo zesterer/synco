@@ -3,7 +3,7 @@
     maybe_uninit_ref,
     maybe_uninit_extra,
     associated_type_defaults,
-    min_type_alias_impl_trait,
+    type_alias_impl_trait,
     unboxed_closures,
     fn_traits,
 )]
