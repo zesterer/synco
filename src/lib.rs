@@ -19,7 +19,7 @@ pub mod system;
 pub use self::{
     component::Component,
     entity::{BitMask, EntityId, Entities},
-    query::{Query, Pattern, Not, Maybe},
+    query::{Query, Pattern, Not, Maybe, MaybeMut},
     resource::Resource,
     row::{Read, Write},
     storage::{Storage, VecStorage},

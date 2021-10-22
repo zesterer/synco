@@ -165,6 +165,30 @@ impl<C: Component> Pattern for Maybe<C> {
     }
 }
 
+pub struct MaybeMut<C: Component>(PhantomData<C>);
+
+impl<C: Component> Pattern for MaybeMut<C> {
+    type State<'a> = (Read<'a, Entities>, Write<'a, C::Storage>, u64);
+    type Output<'a> = Option<<C::Storage as Storage<C>>::RefMut<'a>>;
+
+    fn comp_filter(ecs: &Ecs) -> (BitMask, BitMask) {
+        let mask = BitMask::zero();
+        (mask.clone(), mask)
+    }
+
+    fn fetch_inner<'a>(ecs: &'a Ecs) -> Self::State<'a> {
+        (ecs.entities.read(), ecs.write_resource(), ecs.storage_id::<C>() as u64)
+    }
+
+    unsafe fn get_unchecked<'a, 'b: 'a>((entities, storage, comp_id): &'a mut Self::State<'b>, entity: EntityId) -> Self::Output<'a> {
+        if entities.entry(entity)?.comp_mask.bit_is_set(*comp_id) {
+            Some(storage.get_unchecked_mut(entity))
+        } else {
+            None
+        }
+    }
+}
+
 macro_rules! impl_for_tuple {
     ($($x:ident),*) => {
         impl<$($x: Pattern),*> Pattern for ($($x,)*) {
